@@ -1,0 +1,185 @@
+---
+/**
+ * 留言板组件 - 对话模式
+ * TT 和 CC 双方可以互相留言，使用 IndexedDB 存储
+ */
+---
+
+<div class="max-w-[720px] mx-auto py-16 px-5" id="message-board">
+  <!-- 标题 -->
+  <h2 class="text-3xl font-light text-[#2C1A1E] text-center mb-8 tracking-wider" style="font-family: 'Playfair Display', serif;">
+    写给对方的话
+  </h2>
+  
+  <!-- 留言列表 -->
+  <div id="message-list" class="space-y-4 mb-8 max-h-[400px] overflow-y-auto pr-2">
+    <!-- 留言卡片通过 JS 动态渲染 -->
+  </div>
+  
+  <!-- 空状态 -->
+  <div id="message-empty" class="text-center py-8">
+    <p class="text-[#C4A4AB] text-sm">还没有留言，写下第一句吧 💌</p>
+  </div>
+  
+  <!-- 输入区 -->
+  <div class="bg-white/60 rounded-[16px] p-4" style="backdrop-filter: blur(10px); border: 1px solid rgba(237,107,134,0.1);">
+    <!-- 作者选择 -->
+    <div class="flex gap-3 mb-3">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="radio" name="author" value="TT" checked class="accent-[#ED6B86]" />
+        <span class="text-sm text-[#2C1A1E] font-medium">TT</span>
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="radio" name="author" value="CC" class="accent-[#ED6B86]" />
+        <span class="text-sm text-[#2C1A1E] font-medium">CC</span>
+      </label>
+    </div>
+    <!-- 输入框 -->
+    <div class="flex gap-3">
+      <textarea 
+        id="message-input" 
+        class="flex-1 rounded-[12px] px-4 py-3 text-sm resize-none border border-[#F5A8B8] focus:outline-none focus:border-[#ED6B86]" 
+        style="background: rgba(255,255,255,0.8); font-family: 'Noto Serif SC', serif;"
+        placeholder="写下你想说的话..."
+        maxlength="500"
+        rows="2"
+      ></textarea>
+      <button 
+        id="send-btn"
+        class="bg-[#ED6B86] text-white rounded-[12px] px-5 py-3 text-sm font-medium hover:bg-[#D4507A] transition-colors self-end"
+      >
+        发送
+      </button>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  (function() {
+    // HTML 转义，防止 XSS 攻击
+    function escapeHtml(str) {
+      var div = document.createElement("div");
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+    
+    // 格式化时间，显示相对时间
+    function formatTime(ts) {
+      var now = Date.now();
+      var diff = now - ts;
+      var minutes = Math.floor(diff / 60000);
+      var hours = Math.floor(diff / 3600000);
+      var days = Math.floor(diff / 86400000);
+      
+      if (minutes < 1) return "刚刚";
+      if (minutes < 60) return minutes + " 分钟前";
+      if (hours < 24) return hours + " 小时前";
+      if (days < 30) return days + " 天前";
+      
+      var date = new Date(ts);
+      return date.getFullYear() + "/" + (date.getMonth()+1) + "/" + date.getDate();
+    }
+    
+    // 加载留言
+    function loadMessages() {
+      var listEl = document.getElementById("message-list");
+      var emptyEl = document.getElementById("message-empty");
+      if (!listEl || !emptyEl) return;
+      
+      var dbRequest = indexedDB.open("520-memorial");
+      dbRequest.onsuccess = function(e) {
+        var db = e.target.result;
+        var tx = db.transaction("messages", "readonly");
+        var store = tx.objectStore("messages");
+        var getAll = store.getAll();
+        
+        getAll.onsuccess = function() {
+          var messages = getAll.result;
+          
+          if (messages.length === 0) {
+            emptyEl.style.display = "block";
+            listEl.innerHTML = "";
+            return;
+          }
+          
+          emptyEl.style.display = "none";
+          // 按时间倒序排列
+          messages.sort(function(a, b) { return b.createdAt - a.createdAt; });
+          
+          var html = "";
+          for (var i = 0; i < messages.length; i++) {
+            var msg = messages[i];
+            var isTT = msg.author === "TT";
+            var tagColor = isTT ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700";
+            var safeContent = escapeHtml(msg.content);
+            
+            html += '<div class="bg-white/60 rounded-[12px] p-4 relative" style="backdrop-filter: blur(8px); border: 1px solid rgba(237,107,134,0.08);">' +
+              '<div class="flex items-start gap-3">' +
+              '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ' + tagColor + '">' + escapeHtml(msg.author) + '</span>' +
+              '<div class="flex-1">' +
+              '<p class="text-[#2C1A1E] text-sm leading-relaxed" style="font-family: \'Noto Serif SC\', serif;">' + safeContent + '</p>' +
+              '<p class="text-[#C4A4AB] text-xs mt-2">' + formatTime(msg.createdAt) + '</p>' +
+              '</div>' +
+              '<button onclick="window.deleteMessage(\'' + msg.id + '\')" class="text-[#C4A4AB] hover:text-[#ED6B86] transition-colors p-1">' +
+              '<svg class="w-4 h-4" style="stroke: currentColor; stroke-width: 1.5; fill: none;" viewBox="0 0 24 24">' +
+              '<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/></svg></button>' +
+              '</div></div>';
+          }
+          listEl.innerHTML = html;
+        };
+      };
+    }
+    
+    // 删除留言
+    window.deleteMessage = function(id) {
+      if (!confirm("确定要删除这条留言吗？")) return;
+      
+      var dbRequest = indexedDB.open("520-memorial");
+      dbRequest.onsuccess = function(e) {
+        var db = e.target.result;
+        var tx = db.transaction("messages", "readwrite");
+        var store = tx.objectStore("messages");
+        store.delete(id);
+        tx.oncomplete = function() {
+          loadMessages();
+        };
+      };
+    };
+    
+    // 发送留言
+    var sendBtn = document.getElementById("send-btn");
+    var inputEl = document.getElementById("message-input");
+    
+    if (sendBtn && inputEl) {
+      sendBtn.addEventListener("click", function() {
+        var content = inputEl.value.trim();
+        if (!content) return;
+        
+        var authorEl = document.querySelector('input[name="author"]:checked');
+        var author = authorEl ? authorEl.value : "TT";
+        
+        var message = {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+          author: author,
+          content: content,
+          createdAt: Date.now()
+        };
+        
+        var dbRequest = indexedDB.open("520-memorial");
+        dbRequest.onsuccess = function(e) {
+          var db = e.target.result;
+          var tx = db.transaction("messages", "readwrite");
+          var store = tx.objectStore("messages");
+          store.put(message);
+          tx.oncomplete = function() {
+            inputEl.value = "";
+            loadMessages();
+          };
+        };
+      });
+    }
+    
+    // 初始化加载
+    loadMessages();
+  })();
+</script>
