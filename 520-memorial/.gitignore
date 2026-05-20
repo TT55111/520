@@ -8,7 +8,7 @@ dist/
 .astro/
 
 # Worktrees
-520-memorial/.worktrees/
+.worktrees/
 
 # 音乐文件（版权保护）
 *.mp3
