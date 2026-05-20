@@ -1,0 +1,55 @@
+---
+// 漂浮粒子背景组件
+// 从爱心中心向外飘散的粒子效果
+---
+
+<div id="particles" class="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+</div>
+
+<script is:inline>
+  (function () {
+    const container = document.getElementById("particles");
+    if (!container) return;
+    
+    const colors = [
+      "rgba(237,107,134,0.4)",
+      "rgba(237,107,134,0.3)",
+      "rgba(245,168,184,0.4)",
+      "rgba(212,80,122,0.3)"
+    ];
+    const particleCount = 30;
+    
+    function createParticle() {
+      const p = document.createElement("div");
+      const size = Math.random() * 6 + 3;
+      p.style.cssText = `
+        position: absolute;
+        width: ${size}px;
+        height: ${size}px;
+        border-radius: 50%;
+        background: ${colors[Math.floor(Math.random() * colors.length)]};
+        left: 50%;
+        top: 50%;
+        opacity: 0;
+        --dx: ${(Math.random() - 0.5) * 600}px;
+        --dy: ${(Math.random() - 0.5) * 600}px;
+        animation: particleFloat ${Math.random() * 6 + 6}s linear infinite;
+        animation-delay: ${Math.random() * 8}s;
+      `;
+      container.appendChild(p);
+    }
+    
+    for (let i = 0; i < particleCount; i++) {
+      createParticle();
+    }
+  })();
+</script>
+
+<style is:global>
+@keyframes particleFloat {
+  0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+  5% { opacity: 0.7; }
+  50% { opacity: 0.3; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+}
+</style>
