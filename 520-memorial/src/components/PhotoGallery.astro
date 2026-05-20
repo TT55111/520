@@ -496,7 +496,87 @@ import type { PhotoItem } from "../lib/storage";
     }
   });
 
-  // 初始加载
-  loadPhotos();
+  // ==================== 数据库迁移 ====================
+
+  /**
+   * 数据库迁移：将旧版 love520_photos 数据库中的照片迁移到新版 love520 数据库
+   * 迁移完成后删除旧数据库，避免数据丢失
+   */
+  function migrateOldDB() {
+    var oldDBName = "love520_photos";
+    var req = indexedDB.open(oldDBName);
+
+    req.onupgradeneeded = function(e) {
+      // 旧数据库不存在，无需迁移
+      e.target.transaction.abort();
+      indexedDB.deleteDatabase(oldDBName);
+    };
+
+    req.onsuccess = function(e) {
+      var oldDB = e.target.result;
+      // 检查旧数据库中是否有 photos store
+      if (!oldDB.objectStoreNames.contains("photos")) {
+        oldDB.close();
+        indexedDB.deleteDatabase(oldDBName);
+        return;
+      }
+
+      var tx = oldDB.transaction("photos", "readonly");
+      var store = tx.objectStore("photos");
+      var all = [];
+      store.openCursor().onsuccess = function(ev) {
+        var cursor = ev.target.result;
+        if (cursor) {
+          all.push(cursor.value);
+          cursor.continue();
+        } else {
+          oldDB.close();
+          if (all.length === 0) {
+            indexedDB.deleteDatabase(oldDBName);
+            return;
+          }
+          // 将旧数据写入新数据库
+          openDB(function(newDB) {
+            var newTx = newDB.transaction("photos", "readwrite");
+            var newStore = newTx.objectStore("photos");
+            for (var i = 0; i < all.length; i++) {
+              newStore.put(all[i]);
+            }
+            newTx.oncomplete = function() {
+              newDB.close();
+              indexedDB.deleteDatabase(oldDBName);
+              console.log("已迁移 " + all.length + " 张照片到新数据库");
+              loadPhotos(); // 重新加载
+            };
+          });
+        }
+      };
+    };
+
+    req.onerror = function() {
+      // 旧数据库不存在或无法打开，忽略
+    };
+  }
+
+  // 页面加载时尝试迁移
+  migrateOldDB();
+
+  // 初始加载（迁移函数会在迁移完成后自动调用 loadPhotos）
+  // 如果没有旧数据库需要迁移，直接加载
+  if (!indexedDB.databases) {
+    // 浏览器不支持 indexedDB.databases()，直接加载
+    loadPhotos();
+  } else {
+    // 检查是否存在旧数据库
+    indexedDB.databases().then(function(dbs) {
+      var hasOldDB = dbs.some(function(db) { return db.name === "love520_photos"; });
+      if (!hasOldDB) {
+        loadPhotos();
+      }
+      // 如果有旧数据库，migrateOldDB 会处理迁移和加载
+    }).catch(function() {
+      loadPhotos();
+    });
+  }
 })();
 </script>
