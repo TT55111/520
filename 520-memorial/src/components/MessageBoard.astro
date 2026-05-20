@@ -55,131 +55,169 @@
 </div>
 
 <script is:inline>
-  (function() {
-    // HTML 转义，防止 XSS 攻击
-    function escapeHtml(str) {
-      var div = document.createElement("div");
-      div.appendChild(document.createTextNode(str));
-      return div.innerHTML;
-    }
-    
-    // 格式化时间，显示相对时间
-    function formatTime(ts) {
-      var now = Date.now();
-      var diff = now - ts;
-      var minutes = Math.floor(diff / 60000);
-      var hours = Math.floor(diff / 3600000);
-      var days = Math.floor(diff / 86400000);
-      
-      if (minutes < 1) return "刚刚";
-      if (minutes < 60) return minutes + " 分钟前";
-      if (hours < 24) return hours + " 小时前";
-      if (days < 30) return days + " 天前";
-      
-      var date = new Date(ts);
-      return date.getFullYear() + "/" + (date.getMonth()+1) + "/" + date.getDate();
-    }
-    
-    // 加载留言
-    function loadMessages() {
-      var listEl = document.getElementById("message-list");
-      var emptyEl = document.getElementById("message-empty");
-      if (!listEl || !emptyEl) return;
-      
-      var dbRequest = indexedDB.open("520-memorial");
-      dbRequest.onsuccess = function(e) {
-        var db = e.target.result;
-        var tx = db.transaction("messages", "readonly");
-        var store = tx.objectStore("messages");
-        var getAll = store.getAll();
-        
-        getAll.onsuccess = function() {
-          var messages = getAll.result;
-          
-          if (messages.length === 0) {
-            emptyEl.style.display = "block";
-            listEl.innerHTML = "";
-            return;
-          }
-          
-          emptyEl.style.display = "none";
-          // 按时间倒序排列
-          messages.sort(function(a, b) { return b.createdAt - a.createdAt; });
-          
-          var html = "";
-          for (var i = 0; i < messages.length; i++) {
-            var msg = messages[i];
-            var isTT = msg.author === "TT";
-            var tagColor = isTT ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700";
-            var safeContent = escapeHtml(msg.content);
-            
-            html += '<div class="bg-white/60 rounded-[12px] p-4 relative" style="backdrop-filter: blur(8px); border: 1px solid rgba(237,107,134,0.08);">' +
-              '<div class="flex items-start gap-3">' +
-              '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ' + tagColor + '">' + escapeHtml(msg.author) + '</span>' +
-              '<div class="flex-1">' +
-              '<p class="text-[#2C1A1E] text-sm leading-relaxed" style="font-family: \'Noto Serif SC\', serif;">' + safeContent + '</p>' +
-              '<p class="text-[#C4A4AB] text-xs mt-2">' + formatTime(msg.createdAt) + '</p>' +
-              '</div>' +
-              '<button onclick="window.deleteMessage(\'' + msg.id + '\')" class="text-[#C4A4AB] hover:text-[#ED6B86] transition-colors p-1">' +
-              '<svg class="w-4 h-4" style="stroke: currentColor; stroke-width: 1.5; fill: none;" viewBox="0 0 24 24">' +
-              '<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/></svg></button>' +
-              '</div></div>';
-          }
-          listEl.innerHTML = html;
-        };
+(function() {
+  // Bug 4 修复：确保命名空间存在
+  window.Love520 = window.Love520 || {};
+
+  // ==================== 工具函数 ====================
+
+  /** HTML 转义，防止 XSS 攻击 */
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  /** 格式化时间，显示相对时间 */
+  function formatTime(ts) {
+    var now = Date.now();
+    var diff = now - ts;
+    var minutes = Math.floor(diff / 60000);
+    var hours = Math.floor(diff / 3600000);
+    var days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "刚刚";
+    if (minutes < 60) return minutes + " 分钟前";
+    if (hours < 24) return hours + " 小时前";
+    if (days < 30) return days + " 天前";
+
+    var date = new Date(ts);
+    return date.getFullYear() + "/" + (date.getMonth() + 1) + "/" + date.getDate();
+  }
+
+  // ==================== IndexedDB 操作 ====================
+  // Bug 5 修复：统一使用 openDB 函数，确保 onupgradeneeded 创建 objectStore
+
+  var DB_NAME = "love520";
+  var DB_VERSION = 1;
+
+  function openDB(callback) {
+    var req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = function(e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains("photos")) {
+        db.createObjectStore("photos", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("messages")) {
+        db.createObjectStore("messages", { keyPath: "id" });
+      }
+    };
+    req.onsuccess = function(e) {
+      callback(e.target.result);
+    };
+    req.onerror = function(e) {
+      console.error("IndexedDB 打开失败:", e.target.error);
+    };
+  }
+
+  // ==================== 留言操作 ====================
+
+  /** 加载留言列表 */
+  function loadMessages() {
+    var listEl = document.getElementById("message-list");
+    var emptyEl = document.getElementById("message-empty");
+    if (!listEl || !emptyEl) return;
+
+    openDB(function(db) {
+      var tx = db.transaction("messages", "readonly");
+      var store = tx.objectStore("messages");
+      var getAll = store.getAll();
+
+      getAll.onsuccess = function() {
+        var messages = getAll.result;
+
+        if (messages.length === 0) {
+          emptyEl.style.display = "block";
+          listEl.innerHTML = "";
+          return;
+        }
+
+        emptyEl.style.display = "none";
+        messages.sort(function(a, b) { return b.createdAt - a.createdAt; });
+
+        var html = "";
+        for (var i = 0; i < messages.length; i++) {
+          var msg = messages[i];
+          var isTT = msg.author === "TT";
+          var tagColor = isTT ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700";
+          var safeContent = escapeHtml(msg.content);
+
+          html += '<div class="bg-white/60 rounded-[12px] p-4 relative" style="backdrop-filter: blur(8px); border: 1px solid rgba(237,107,134,0.08);">' +
+            '<div class="flex items-start gap-3">' +
+            '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ' + tagColor + '">' + escapeHtml(msg.author) + '</span>' +
+            '<div class="flex-1">' +
+            '<p class="text-[#2C1A1E] text-sm leading-relaxed" style="font-family: \'Noto Serif SC\', serif;">' + safeContent + '</p>' +
+            '<p class="text-[#C4A4AB] text-xs mt-2">' + formatTime(msg.createdAt) + '</p>' +
+            '</div>' +
+            '<button data-msg-id="' + escapeHtml(msg.id) + '" class="msg-delete-btn text-[#C4A4AB] hover:text-[#ED6B86] transition-colors p-1">' +
+            '<svg class="w-4 h-4" style="stroke: currentColor; stroke-width: 1.5; fill: none;" viewBox="0 0 24 24">' +
+            '<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/></svg></button>' +
+            '</div></div>';
+        }
+        listEl.innerHTML = html;
+
+        // 使用事件委托绑定删除按钮，避免 inline onclick
+        listEl.querySelectorAll(".msg-delete-btn").forEach(function(btn) {
+          btn.addEventListener("click", function() {
+            var id = btn.getAttribute("data-msg-id");
+            if (id) window.Love520.deleteMessage(id);
+          });
+        });
       };
-    }
-    
-    // 删除留言
-    window.deleteMessage = function(id) {
-      if (!confirm("确定要删除这条留言吗？")) return;
-      
-      var dbRequest = indexedDB.open("520-memorial");
-      dbRequest.onsuccess = function(e) {
-        var db = e.target.result;
+    });
+  }
+
+  // ==================== 全局函数（命名空间化，Bug 4 修复） ====================
+
+  /** 删除留言 */
+  window.Love520.deleteMessage = function(id) {
+    if (!confirm("确定要删除这条留言吗？")) return;
+
+    openDB(function(db) {
+      var tx = db.transaction("messages", "readwrite");
+      var store = tx.objectStore("messages");
+      store.delete(id);
+      tx.oncomplete = function() {
+        db.close();
+        loadMessages();
+      };
+    });
+  };
+
+  // ==================== 发送留言 ====================
+
+  var sendBtn = document.getElementById("send-btn");
+  var inputEl = document.getElementById("message-input");
+
+  if (sendBtn && inputEl) {
+    sendBtn.addEventListener("click", function() {
+      var content = inputEl.value.trim();
+      if (!content) return;
+
+      var authorEl = document.querySelector('input[name="author"]:checked');
+      var author = authorEl ? authorEl.value : "TT";
+
+      var message = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        author: author,
+        content: content,
+        createdAt: Date.now()
+      };
+
+      openDB(function(db) {
         var tx = db.transaction("messages", "readwrite");
         var store = tx.objectStore("messages");
-        store.delete(id);
+        store.put(message);
         tx.oncomplete = function() {
+          db.close();
+          inputEl.value = "";
           loadMessages();
         };
-      };
-    };
-    
-    // 发送留言
-    var sendBtn = document.getElementById("send-btn");
-    var inputEl = document.getElementById("message-input");
-    
-    if (sendBtn && inputEl) {
-      sendBtn.addEventListener("click", function() {
-        var content = inputEl.value.trim();
-        if (!content) return;
-        
-        var authorEl = document.querySelector('input[name="author"]:checked');
-        var author = authorEl ? authorEl.value : "TT";
-        
-        var message = {
-          id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-          author: author,
-          content: content,
-          createdAt: Date.now()
-        };
-        
-        var dbRequest = indexedDB.open("520-memorial");
-        dbRequest.onsuccess = function(e) {
-          var db = e.target.result;
-          var tx = db.transaction("messages", "readwrite");
-          var store = tx.objectStore("messages");
-          store.put(message);
-          tx.oncomplete = function() {
-            inputEl.value = "";
-            loadMessages();
-          };
-        };
       });
-    }
-    
-    // 初始化加载
-    loadMessages();
-  })();
+    });
+  }
+
+  // 初始化加载
+  loadMessages();
+})();
 </script>
