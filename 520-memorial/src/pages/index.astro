@@ -1,0 +1,26 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.astro";
+import FloatingHearts from "../components/FloatingHearts.astro";
+import PhotoGallery from "../components/PhotoGallery.astro";
+import PhotoModal from "../components/PhotoModal.astro";
+import MusicPlayer from "../components/MusicPlayer.astro";
+import { config } from "../config";
+---
+
+<BaseLayout title={config.pageTitle}>
+  <!-- 漂浮爱心背景 -->
+  <FloatingHearts />
+  
+  <!-- Hero 区域 -->
+  <Hero />
+  
+  <!-- 照片墙区域 -->
+  <PhotoGallery />
+  
+  <!-- 照片预览 Modal -->
+  <PhotoModal />
+  
+  <!-- 音乐播放器 -->
+  <MusicPlayer />
+</BaseLayout>

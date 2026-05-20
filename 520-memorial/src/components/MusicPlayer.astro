@@ -1,0 +1,106 @@
+---
+/**
+ * 音乐播放器组件
+ * 固定在页面右下角，支持播放/暂停切换
+ * 使用 is:inline script + ES5 语法确保 DOM 获取正确
+ */
+import { config } from "../config";
+
+const { musicUrl } = config;
+---
+
+<!-- 将音乐路径通过 data 属性传递到 DOM -->
+<div id="music-player" class="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 py-2.5 px-3.5 rounded-[50px] cursor-pointer transition-all duration-300" style="background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(237,107,134,0.15); box-shadow: 0 4px 24px rgba(237,107,134,0.12);" data-music-url={musicUrl} onmouseenter="this.style.boxShadow='0 6px 32px rgba(237,107,134,0.2)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.boxShadow='';this.style.transform=''">
+  <!-- 旋转唱片 -->
+  <div id="music-disc" class="w-7 h-7 rounded-full flex items-center justify-center" style="background: linear-gradient(135deg, #ED6B86, #D4507A); animation: spin 3s linear infinite; animation-play-state: paused;">
+    <svg class="w-3 h-3" style="fill: #fff;" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
+  </div>
+  
+  <!-- 歌曲信息 -->
+  <div class="flex flex-col">
+    <span class="text-xs text-[#2C1A1E] tracking-wide" style="font-size: 0.72rem;">背景音乐</span>
+    <span class="text-[#A0808A] tracking-wide" style="font-size: 0.65rem;" id="music-status">点击播放</span>
+  </div>
+  
+  <!-- 播放按钮 -->
+  <button id="play-btn" class="bg-none border-none cursor-pointer p-0" type="button">
+    <svg class="w-4 h-4" style="fill: #ED6B86;" viewBox="0 0 24 24" id="play-icon">
+      <path d="M8 5v14l11-7z"/>
+    </svg>
+  </button>
+
+  <!-- 隐藏的 audio 元素 -->
+  <audio id="bg-music" loop preload="auto">
+  </audio>
+</div>
+
+<script is:inline>
+  // 等待 DOM 加载完成后初始化音乐播放器
+  document.addEventListener("DOMContentLoaded", function() {
+    var player = document.getElementById("music-player");
+    var musicUrl = player ? player.getAttribute("data-music-url") : "/music/bg.mp3";
+    
+    var audio = document.getElementById("bg-music");
+    var playBtn = document.getElementById("play-btn");
+    var playIcon = document.getElementById("play-icon");
+    var musicStatus = document.getElementById("music-status");
+    var musicDisc = document.getElementById("music-disc");
+    var isPlaying = false;
+
+    // 动态设置音频源
+    if (audio && musicUrl) {
+      audio.src = musicUrl;
+    }
+
+    // 切换播放/暂停
+    function toggleMusic() {
+      if (!audio) return;
+      if (isPlaying) {
+        audio.pause();
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        musicStatus.textContent = "点击播放";
+        musicDisc.style.animationPlayState = 'paused';
+      } else {
+        audio.play().then(function() {
+          playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+          musicStatus.textContent = "正在播放";
+          musicDisc.style.animationPlayState = 'running';
+        }).catch(function(err) {
+          console.warn("Audio play failed:", err);
+          musicStatus.textContent = "播放失败，请检查音乐文件";
+        });
+      }
+      isPlaying = !isPlaying;
+    }
+
+    // 点击播放按钮切换
+    if (playBtn) {
+      playBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        toggleMusic();
+      });
+    }
+
+    // 点击播放器整体区域也可以切换
+    if (player) {
+      player.addEventListener("click", function(e) {
+        if (e.target === playBtn) return;
+        toggleMusic();
+      });
+    }
+
+    // 首次点击页面时尝试自动播放
+    var autoPlayed = false;
+    document.addEventListener("click", function() {
+      if (!autoPlayed && !isPlaying && audio) {
+        autoPlayed = true;
+        audio.play().then(function() {
+          isPlaying = true;
+          playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+          musicStatus.textContent = "正在播放";
+          musicDisc.style.animationPlayState = 'running';
+        }).catch(function() {});
+      }
+    });
+  });
+</script>
