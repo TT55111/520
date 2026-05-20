@@ -3,7 +3,7 @@
  * 照片墙组件
  * 功能：拖拽上传、瀑布流展示、点击预览、删除
  */
-import type { PhotoItem } from "../lib/storage";
+import type { PhotoItem } from "../lib/db";
 ---
 
 <section id="gallery" class="py-24 px-6 relative z-10" style="background: radial-gradient(ellipse at 70% 20%, rgba(237,107,134,0.08) 0%, transparent 50%), #FFF3F5;">
@@ -49,6 +49,13 @@ import type { PhotoItem } from "../lib/storage";
     </div>
   </div>
 </section>
+
+<!-- 非 inline script：Astro 会打包此模块，使 JSZip 可通过 window.JSZip 访问 -->
+<script>
+  import JSZip from "jszip";
+  // 将 JSZip 挂载到全局，供 inline script 中的导出功能使用
+  window.JSZip = JSZip;
+</script>
 
 <script is:inline>
 (function() {
@@ -321,6 +328,8 @@ import type { PhotoItem } from "../lib/storage";
   function checkStorageQuota() {
     if (navigator.storage && navigator.storage.estimate) {
       navigator.storage.estimate().then(function(est) {
+        // I3 修复：防止 quota 为 0 导致除零误报
+        if (!est.quota || est.quota === 0) return;
         var usedMB = (est.usage / (1024 * 1024)).toFixed(1);
         var quotaMB = (est.quota / (1024 * 1024)).toFixed(0);
         var usagePercent = est.usage / est.quota;
@@ -381,14 +390,11 @@ import type { PhotoItem } from "../lib/storage";
     }
   };
 
-  /** 导出照片为 ZIP（Bug 2 修复：使用动态 import 替代 CDN） */
-  window.Love520.exportPhotos = async function() {
-    var JSZip;
-    try {
-      var module = await import("jszip");
-      JSZip = module.default || module;
-    } catch (err) {
-      console.error("JSZip 加载失败:", err);
+  /** 导出照片为 ZIP（Bug 2 修复：使用 npm 打包的 JSZip 替代 CDN） */
+  window.Love520.exportPhotos = function() {
+    // JSZip 已通过非 inline script 加载到 window.JSZip
+    var JSZip = window.JSZip;
+    if (!JSZip) {
       alert("导出组件加载失败，请刷新页面重试");
       return;
     }
@@ -558,22 +564,20 @@ import type { PhotoItem } from "../lib/storage";
     };
   }
 
-  // 页面加载时尝试迁移
-  migrateOldDB();
-
-  // 初始加载（迁移函数会在迁移完成后自动调用 loadPhotos）
-  // 如果没有旧数据库需要迁移，直接加载
+  // 页面加载时：检查是否需要迁移旧数据库，避免竞态
   if (!indexedDB.databases) {
     // 浏览器不支持 indexedDB.databases()，直接加载
     loadPhotos();
   } else {
-    // 检查是否存在旧数据库
     indexedDB.databases().then(function(dbs) {
       var hasOldDB = dbs.some(function(db) { return db.name === "love520_photos"; });
-      if (!hasOldDB) {
+      if (hasOldDB) {
+        // 有旧数据库，先迁移再加载（migrateOldDB 完成后会调用 loadPhotos）
+        migrateOldDB();
+      } else {
+        // 无旧数据库，直接加载
         loadPhotos();
       }
-      // 如果有旧数据库，migrateOldDB 会处理迁移和加载
     }).catch(function() {
       loadPhotos();
     });
