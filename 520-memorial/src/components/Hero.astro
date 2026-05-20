@@ -76,6 +76,11 @@ const { name1, name2, startDate } = config;
     }
     
     updateTimer();
-    setInterval(updateTimer, 1000);
+    var timer = setInterval(updateTimer, 1000);
+
+    // Bug 9 修复：页面卸载时清除定时器，避免内存泄漏
+    window.addEventListener("beforeunload", function() {
+      clearInterval(timer);
+    });
   })();
 </script>
