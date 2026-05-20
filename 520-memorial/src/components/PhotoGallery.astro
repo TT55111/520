@@ -11,7 +11,7 @@ import type { PhotoItem } from "../lib/storage";
     <div class="text-center mb-14">
       <div class="inline-flex items-center gap-2 mb-2">
         <h2 class="text-3xl font-normal text-[#2C1A1E] tracking-[2px]" style="font-family: 'Playfair Display', 'Noto Serif SC', serif;">Our Moments</h2>
-        <button id="export-btn" class="px-3 py-1.5 rounded-full text-xs font-medium transition-transform hover:scale-105" style="background: rgba(237,107,134,0.1); color: #ED6B86; border: 1px solid rgba(237,107,134,0.2);" onclick="window.exportPhotos()">
+        <button id="export-btn" class="px-3 py-1.5 rounded-full text-xs font-medium transition-transform hover:scale-105" style="background: rgba(237,107,134,0.1); color: #ED6B86; border: 1px solid rgba(237,107,134,0.2);" onclick="window.Love520.exportPhotos()">
           <svg class="w-3.5 h-3.5 inline mr-1" style="stroke: currentColor; stroke-width: 2; fill: none;" viewBox="0 0 24 24">
             <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V4m0 0l-4 4m4-4l4 4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -51,360 +51,452 @@ import type { PhotoItem } from "../lib/storage";
 </section>
 
 <script is:inline>
-  (function() {
-    // 存储照片数据
-    var photos = [];
-    
-    // 压缩图片
-    function compressImage(file, callback) {
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        var img = new Image();
-        img.onload = function() {
-          var canvas = document.createElement("canvas");
-          var maxSize = 800;
-          var width = img.width;
-          var height = img.height;
-          
-          if (width > height && width > maxSize) {
-            height = (maxSize / width) * height;
-            width = maxSize;
-          } else if (height > maxSize) {
-            width = (maxSize / height) * width;
-            height = maxSize;
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          callback(canvas.toDataURL("image/jpeg", 0.8));
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-    
-    // 保存到 IndexedDB
-    function savePhoto(photo, callback) {
-      var req = indexedDB.open("love520_photos", 1);
-      req.onupgradeneeded = function(e) {
-        e.target.result.createObjectStore("photos", { keyPath: "id" });
-      };
-      req.onsuccess = function(e) {
-        var db = e.target.result;
-        var tx = db.transaction("photos", "readwrite");
-        tx.objectStore("photos").put(photo);
-        tx.oncomplete = function() {
-          db.close();
-          if (callback) callback();
-        };
-      };
-    }
-    
-    // 获取所有照片
-    function getAllPhotos(callback) {
-      var req = indexedDB.open("love520_photos", 1);
-      req.onupgradeneeded = function(e) {
-        e.target.result.createObjectStore("photos", { keyPath: "id" });
-      };
-      req.onsuccess = function(e) {
-        var db = e.target.result;
-        var tx = db.transaction("photos", "readonly");
-        var store = tx.objectStore("photos");
-        var all = [];
-        store.openCursor().onsuccess = function(ev) {
-          var cursor = ev.target.result;
-          if (cursor) {
-            all.push(cursor.value);
-            cursor.continue();
-          } else {
-            all.sort(function(a, b) { return b.uploadedAt - a.uploadedAt; });
-            db.close();
-            callback(all);
-          }
-        };
-      };
-    }
-    
-    // 删除照片
-    function deletePhotoById(id, callback) {
-      var req = indexedDB.open("love520_photos", 1);
-      req.onupgradeneeded = function(e) {
-        e.target.result.createObjectStore("photos", { keyPath: "id" });
-      };
-      req.onsuccess = function(e) {
-        var db = e.target.result;
-        var tx = db.transaction("photos", "readwrite");
-        tx.objectStore("photos").delete(id);
-        tx.oncomplete = function() {
-          db.close();
-          if (callback) callback();
-        };
-      };
-    }
-    
-    // 生成唯一 ID
-    function generateId() {
-      return Date.now().toString(36) + Math.random().toString(36).slice(2);
-    }
-    
-    // HTML 转义：防止文件名中包含特殊字符导致 XSS 注入
-    function escapeHtml(str) {
-      var div = document.createElement("div");
-      div.appendChild(document.createTextNode(str));
-      return div.innerHTML;
-    }
-    
-    // 渲染照片
-    function renderPhotos(photosList) {
-      var photoWall = document.getElementById("photo-wall");
-      var emptyState = document.getElementById("empty-state");
-      
-      if (!photoWall || !emptyState) return;
-      
-      if (photosList.length === 0) {
-        emptyState.style.display = "block";
-        photoWall.innerHTML = "";
-        return;
+(function() {
+  // ==================== 命名空间 ====================
+  // Bug 4 修复：所有全局函数收拢到 Love520 命名空间，避免污染 window
+  window.Love520 = window.Love520 || {};
+
+  var photos = [];
+
+  // ==================== 工具函数 ====================
+
+  /** HTML 转义：防止 XSS 注入 */
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  /** 生成唯一 ID */
+  function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  // ==================== IndexedDB 操作 ====================
+  // 统一使用 love520 数据库，包含 photos 和 messages 两个 store
+  // onupgradeneeded 中确保两个 store 都被创建（Bug 5 关联修复）
+
+  var DB_NAME = "love520";
+  var DB_VERSION = 1;
+
+  function openDB(callback) {
+    var req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = function(e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains("photos")) {
+        db.createObjectStore("photos", { keyPath: "id" });
       }
-      
-      emptyState.style.display = "none";
-      var html = "";
-      for (var i = 0; i < photosList.length; i++) {
-        var p = photosList[i];
-        var safeName = escapeHtml(p.name);
-        var safeDataUrl = p.dataUrl.replace(/"/g, "&quot;");
-        html += '<div class="break-inside-avoid mb-3.5 rounded-[16px] overflow-hidden relative cursor-pointer group" ' +
-                'style="border: 1px solid rgba(237,107,134,0.08); transition: all 0.3s ease;" ' +
-                'onclick="window.previewPhoto(' + i + ')" ' +
-                'onmouseenter="this.style.transform=\'translateY(-3px)\';this.style.boxShadow=\'0 8px 30px rgba(237,107,134,0.15)\'" ' +
-                'onmouseleave="this.style.transform=\'\';this.style.boxShadow=\'\'">' +
-                '<img src="' + safeDataUrl + '" alt="' + safeName + '" class="w-full h-auto block" loading="lazy" />' +
-                '<div class="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity" ' +
-                     'style="background: linear-gradient(to top, rgba(44,26,30,0.5) 0%, transparent 50%);">' +
-                '<div class="flex gap-2">' +
-                '<button onclick="event.stopPropagation();window.previewPhoto(' + i + ')" class="bg-white/90 rounded-full w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform">' +
-                '<svg class="w-4 h-4" style="stroke: #D4507A; stroke-width: 2; fill: none;" viewBox="0 0 24 24">' +
-                '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/>' +
-                '<circle cx="12" cy="12" r="3"/></svg></button>' +
-                '<button onclick="event.stopPropagation();window.deletePhoto(' + i + ')" class="bg-white/90 rounded-full w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform">' +
-                '<svg class="w-4 h-4" style="stroke: #D4507A; stroke-width: 2; fill: none;" viewBox="0 0 24 24">' +
-                '<path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
-                '</div></div></div>';
+      if (!db.objectStoreNames.contains("messages")) {
+        db.createObjectStore("messages", { keyPath: "id" });
       }
-      photoWall.innerHTML = html;
+    };
+    req.onsuccess = function(e) {
+      callback(e.target.result);
+    };
+    req.onerror = function(e) {
+      console.error("IndexedDB 打开失败:", e.target.error);
+    };
+  }
+
+  // ==================== 照片 CRUD ====================
+
+  /** 压缩图片：限制最大尺寸 800px，JPEG 质量 0.8 */
+  function compressImage(file, callback) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement("canvas");
+        var maxSize = 800;
+        var width = img.width;
+        var height = img.height;
+
+        if (width > height && width > maxSize) {
+          height = (maxSize / width) * height;
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = (maxSize / height) * width;
+          height = maxSize;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /** 保存照片到 IndexedDB */
+  function savePhoto(photo, callback) {
+    openDB(function(db) {
+      var tx = db.transaction("photos", "readwrite");
+      tx.objectStore("photos").put(photo);
+      tx.oncomplete = function() {
+        db.close();
+        if (callback) callback();
+      };
+    });
+  }
+
+  /** 获取所有照片（按上传时间倒序） */
+  function getAllPhotos(callback) {
+    openDB(function(db) {
+      var tx = db.transaction("photos", "readonly");
+      var store = tx.objectStore("photos");
+      var all = [];
+      store.openCursor().onsuccess = function(e) {
+        var cursor = e.target.result;
+        if (cursor) {
+          all.push(cursor.value);
+          cursor.continue();
+        } else {
+          all.sort(function(a, b) { return b.uploadedAt - a.uploadedAt; });
+          db.close();
+          callback(all);
+        }
+      };
+    });
+  }
+
+  /** 删除照片 */
+  function deletePhotoById(id, callback) {
+    openDB(function(db) {
+      var tx = db.transaction("photos", "readwrite");
+      tx.objectStore("photos").delete(id);
+      tx.oncomplete = function() {
+        db.close();
+        if (callback) callback();
+      };
+    });
+  }
+
+  // ==================== 渲染 ====================
+
+  /** Bug 10 修复：使用 DOM API 创建照片卡片，替代 innerHTML 拼接 */
+  function createPhotoCard(p, index) {
+    var card = document.createElement("div");
+    card.className = "break-inside-avoid mb-3.5 rounded-[16px] overflow-hidden relative cursor-pointer group";
+    card.style.cssText = "border: 1px solid rgba(237,107,134,0.08); transition: all 0.3s ease;";
+
+    // 照片图片
+    var img = document.createElement("img");
+    img.src = p.dataUrl;
+    img.alt = p.name;
+    img.className = "w-full h-auto block";
+    img.loading = "lazy";
+    card.appendChild(img);
+
+    // 悬浮操作层
+    var overlay = document.createElement("div");
+    overlay.className = "absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity";
+    overlay.style.background = "linear-gradient(to top, rgba(44,26,30,0.5) 0%, transparent 50%)";
+
+    var btnGroup = document.createElement("div");
+    btnGroup.className = "flex gap-2";
+
+    // 预览按钮
+    var previewBtn = document.createElement("button");
+    previewBtn.className = "bg-white/90 rounded-full w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform";
+    previewBtn.innerHTML = '<svg class="w-4 h-4" style="stroke: #D4507A; stroke-width: 2; fill: none;" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>';
+    previewBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      window.Love520.previewPhoto(index);
+    });
+
+    // 删除按钮
+    var deleteBtn = document.createElement("button");
+    deleteBtn.className = "bg-white/90 rounded-full w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform";
+    deleteBtn.innerHTML = '<svg class="w-4 h-4" style="stroke: #D4507A; stroke-width: 2; fill: none;" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    deleteBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      window.Love520.deletePhoto(index);
+    });
+
+    btnGroup.appendChild(previewBtn);
+    btnGroup.appendChild(deleteBtn);
+    overlay.appendChild(btnGroup);
+    card.appendChild(overlay);
+
+    // 悬浮效果
+    card.addEventListener("mouseenter", function() {
+      card.style.transform = "translateY(-3px)";
+      card.style.boxShadow = "0 8px 30px rgba(237,107,134,0.15)";
+    });
+    card.addEventListener("mouseleave", function() {
+      card.style.transform = "";
+      card.style.boxShadow = "";
+    });
+
+    // 点击预览
+    card.addEventListener("click", function() {
+      window.Love520.previewPhoto(index);
+    });
+
+    return card;
+  }
+
+  /** 渲染照片列表 */
+  function renderPhotos(photosList) {
+    var photoWall = document.getElementById("photo-wall");
+    var emptyState = document.getElementById("empty-state");
+
+    if (!photoWall || !emptyState) return;
+
+    if (photosList.length === 0) {
+      emptyState.style.display = "block";
+      photoWall.innerHTML = "";
+      return;
     }
-    
-    // 加载照片
-    function loadPhotos() {
-      getAllPhotos(function(list) {
-        photos = list;
-        renderPhotos(list);
-      });
+
+    emptyState.style.display = "none";
+    // Bug 10 修复：清空后用 DOM API 逐个添加，替代 innerHTML 拼接
+    photoWall.innerHTML = "";
+    for (var i = 0; i < photosList.length; i++) {
+      photoWall.appendChild(createPhotoCard(photosList[i], i));
     }
-    
-    // 处理上传
-    function handleFiles(files) {
-      var MAX_SIZE = 10 * 1024 * 1024; // 10MB
-      var MAX_NAME_LEN = 100;
-      var remaining = 0;
-      for (var i = 0; i < files.length; i++) {
-        var file = files[i];
-        // 安全校验：只允许图片文件
-        if (!file.type || !file.type.startsWith("image/")) {
-          continue;
-        }
-        // 安全校验：文件大小限制（10MB）
-        if (file.size > MAX_SIZE) {
-          continue;
-        }
-        // 安全校验：截断超长文件名
-        if (file.name.length > MAX_NAME_LEN) {
-          file.name = file.name.substring(0, MAX_NAME_LEN) + "...";
-        }
-        remaining++;
-        (function(file) {
-          compressImage(file, function(dataUrl) {
-            var photo = {
-              id: generateId(),
-              dataUrl: dataUrl,
-              name: file.name,
-              uploadedAt: Date.now()
-            };
-            savePhoto(photo, function() {
-              remaining--;
-              if (remaining === 0) {
-                loadPhotos();
-              }
-            });
+  }
+
+  /** 加载照片 */
+  function loadPhotos() {
+    getAllPhotos(function(list) {
+      photos = list;
+      renderPhotos(list);
+    });
+  }
+
+  // ==================== 文件上传 ====================
+
+  /** 处理上传的文件 */
+  function handleFiles(files) {
+    var MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    var MAX_NAME_LEN = 100;
+    var remaining = 0;
+
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      // 安全校验：只允许图片文件
+      if (!file.type || !file.type.startsWith("image/")) {
+        continue;
+      }
+      // 安全校验：文件大小限制
+      if (file.size > MAX_SIZE) {
+        alert("文件 " + file.name + " 超过 10MB 限制，已跳过");
+        continue;
+      }
+
+      remaining++;
+      (function(file) {
+        compressImage(file, function(dataUrl) {
+          // Bug 3 修复：file.name 是只读属性，使用新变量存储截断后的名称
+          var safeName = file.name.length > MAX_NAME_LEN
+            ? file.name.substring(0, MAX_NAME_LEN) + "..."
+            : file.name;
+
+          var photo = {
+            id: generateId(),
+            dataUrl: dataUrl,
+            name: safeName,
+            uploadedAt: Date.now()
+          };
+
+          savePhoto(photo, function() {
+            remaining--;
+            if (remaining === 0) {
+              loadPhotos();
+              // Bug 6 修复：上传完成后检查存储容量
+              checkStorageQuota();
+            }
           });
-        })(file);
-      }
-    }
-    
-    // 全局函数
-    window.previewPhoto = function(index) {
-      var dataUrl = photos[index].dataUrl;
-      var modal = document.getElementById("photo-modal");
-      var modalImg = document.getElementById("modal-image");
-      var modalContent = modal ? modal.querySelector("div") : null;
-      if (modal && modalImg) {
-        modalImg.src = dataUrl;
-        modal.classList.remove("hidden");
-        modal.classList.add("flex", "modal-enter-active");
-        if (modalContent) modalContent.classList.add("modal-content-enter-active");
-        setTimeout(function() {
-          if (modal) modal.classList.remove("modal-enter-active");
-          if (modalContent) modalContent.classList.remove("modal-content-enter-active");
-        }, 300);
-      }
-    };
-    
-    window.deletePhoto = function(index) {
-      if (confirm("确定要删除这张照片吗？")) {
-        deletePhotoById(photos[index].id, function() {
-          loadPhotos();
         });
-      }
-    };
-    
-    window.closePhotoModal = function(e) {
-      if (e && e.target !== e.currentTarget) return;
-      var modal = document.getElementById("photo-modal");
-      var modalContent = modal ? modal.querySelector("div") : null;
-      if (modal) {
-        modal.classList.add("modal-exit-active");
-        if (modalContent) modalContent.classList.add("modal-content-exit-active");
-        setTimeout(function() {
-          modal.classList.add("hidden");
-          modal.classList.remove("flex", "modal-exit-active");
-          if (modalContent) modalContent.classList.remove("modal-content-exit-active");
-        }, 200);
-      }
-    };
-
-    // 导出照片为 ZIP
-    window.exportPhotos = function() {
-      // 检查 JSZip 是否已加载
-      if (!window.JSZip) {
-        alert("加载失败，请稍后重试");
-        return;
-      }
-
-      // 打开 IndexedDB 获取所有照片
-      var req = indexedDB.open("love520_photos", 1);
-      req.onupgradeneeded = function(e) {
-        e.target.result.createObjectStore("photos", { keyPath: "id" });
-      };
-      req.onsuccess = function(e) {
-        var db = e.target.result;
-        var tx = db.transaction("photos", "readonly");
-        var store = tx.objectStore("photos");
-        var all = [];
-        store.openCursor().onsuccess = function(ev) {
-          var cursor = ev.target.result;
-          if (cursor) {
-            all.push(cursor.value);
-            cursor.continue();
-          } else {
-            db.close();
-            onPhotosLoaded(all);
-          }
-        };
-      };
-    };
-
-    // 处理照片数据并生成 ZIP
-    function onPhotosLoaded(photos) {
-      if (photos.length === 0) {
-        alert("暂无照片可导出");
-        return;
-      }
-
-      // 按上传时间倒序排列
-      photos.sort(function(a, b) { return b.uploadedAt - a.uploadedAt; });
-
-      // 创建 JSZip 实例
-      var zip = new window.JSZip();
-      var folder = zip.folder("520-photos");
-
-      // 将每张照片添加到 ZIP（使用 base64 解码）
-      for (var i = 0; i < photos.length; i++) {
-        var p = photos[i];
-        // dataUrl 格式: "data:image/jpeg;base64,..."
-        var base64 = p.dataUrl.split(",")[1];
-        var filename = "photo_" + String(i + 1).padStart(3, "0") + ".jpg";
-        folder.file(filename, base64, {base64: true});
-      }
-
-      // 生成 ZIP 文件并触发下载
-      zip.generateAsync({type: "blob"}).then(function(content) {
-        var a = document.createElement("a");
-        a.href = URL.createObjectURL(content);
-        a.download = "520-photos-" + photos.length + ".zip";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-      });
+      })(file);
     }
-    
-    // 拖拽上传
-    var dropZone = document.getElementById("drop-zone");
-    var fileInput = document.getElementById("file-input");
-    
-    if (dropZone && fileInput) {
-      var dropTextMain = document.getElementById("drop-text-main");
-      var dropTextSub = document.getElementById("drop-text-sub");
-      
-      dropZone.addEventListener("dragenter", function(e) {
-        e.preventDefault();
-        dropZone.style.borderColor = "#ED6B86";
-        dropZone.style.background = "rgba(237,107,134,0.08)";
-        if (dropTextMain) dropTextMain.textContent = "释放以上传";
-        if (dropTextSub) dropTextSub.textContent = "松开鼠标完成上传";
-      });
-      
-      dropZone.addEventListener("dragover", function(e) {
-        e.preventDefault();
-      });
-      
-      dropZone.addEventListener("dragleave", function() {
-        dropZone.style.borderColor = "";
-        dropZone.style.background = "";
-        if (dropTextMain) dropTextMain.textContent = "拖拽照片到这里";
-        if (dropTextSub) dropTextSub.textContent = "或点击选择文件";
-      });
-      
-      dropZone.addEventListener("drop", function(e) {
-        e.preventDefault();
-        dropZone.style.borderColor = "";
-        dropZone.style.background = "";
-        if (dropTextMain) dropTextMain.textContent = "拖拽照片到这里";
-        if (dropTextSub) dropTextSub.textContent = "或点击选择文件";
-        handleFiles(e.dataTransfer.files);
-      });
-      
-      dropZone.addEventListener("click", function() {
-        fileInput.click();
-      });
-      
-      fileInput.addEventListener("change", function(e) {
-        if (e.target.files) {
-          handleFiles(e.target.files);
-          e.target.value = "";
+  }
+
+  // ==================== 存储容量检查（Bug 6） ====================
+
+  /** 检查 IndexedDB 存储使用量，接近上限时提示用户 */
+  function checkStorageQuota() {
+    if (navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then(function(est) {
+        var usedMB = (est.usage / (1024 * 1024)).toFixed(1);
+        var quotaMB = (est.quota / (1024 * 1024)).toFixed(0);
+        var usagePercent = est.usage / est.quota;
+
+        // 使用超过 80% 时警告
+        if (usagePercent > 0.8) {
+          console.warn("存储空间使用率超过 80%: " + usedMB + "MB / " + quotaMB + "MB");
+          alert("存储空间即将用尽（已用 " + usedMB + "MB / " + quotaMB + "MB），建议导出照片后清理，避免数据丢失。");
         }
       });
     }
-    
-    // ESC 关闭 Modal
-    document.addEventListener("keydown", function(e) {
-      if (e.key === "Escape") {
-        window.closePhotoModal();
+  }
+
+  // ==================== 全局函数（命名空间化，Bug 4 修复） ====================
+
+  /** 预览照片 */
+  window.Love520.previewPhoto = function(index) {
+    if (!photos[index]) return;
+    var dataUrl = photos[index].dataUrl;
+    var modal = document.getElementById("photo-modal");
+    var modalImg = document.getElementById("modal-image");
+    var modalContent = modal ? modal.querySelector("div") : null;
+    if (modal && modalImg) {
+      modalImg.src = dataUrl;
+      modal.classList.remove("hidden");
+      modal.classList.add("flex", "modal-enter-active");
+      if (modalContent) modalContent.classList.add("modal-content-enter-active");
+      setTimeout(function() {
+        if (modal) modal.classList.remove("modal-enter-active");
+        if (modalContent) modalContent.classList.remove("modal-content-enter-active");
+      }, 300);
+    }
+  };
+
+  /** 删除照片 */
+  window.Love520.deletePhoto = function(index) {
+    if (!photos[index]) return;
+    if (confirm("确定要删除这张照片吗？")) {
+      deletePhotoById(photos[index].id, function() {
+        loadPhotos();
+      });
+    }
+  };
+
+  /** 关闭照片 Modal */
+  window.Love520.closePhotoModal = function(e) {
+    if (e && e.target !== e.currentTarget) return;
+    var modal = document.getElementById("photo-modal");
+    var modalContent = modal ? modal.querySelector("div") : null;
+    if (modal) {
+      modal.classList.add("modal-exit-active");
+      if (modalContent) modalContent.classList.add("modal-content-exit-active");
+      setTimeout(function() {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex", "modal-exit-active");
+        if (modalContent) modalContent.classList.remove("modal-content-exit-active");
+      }, 200);
+    }
+  };
+
+  /** 导出照片为 ZIP（Bug 2 修复：使用动态 import 替代 CDN） */
+  window.Love520.exportPhotos = async function() {
+    var JSZip;
+    try {
+      var module = await import("jszip");
+      JSZip = module.default || module;
+    } catch (err) {
+      console.error("JSZip 加载失败:", err);
+      alert("导出组件加载失败，请刷新页面重试");
+      return;
+    }
+
+    openDB(function(db) {
+      var tx = db.transaction("photos", "readonly");
+      var store = tx.objectStore("photos");
+      var all = [];
+      store.openCursor().onsuccess = function(e) {
+        var cursor = e.target.result;
+        if (cursor) {
+          all.push(cursor.value);
+          cursor.continue();
+        } else {
+          db.close();
+          onPhotosLoaded(all, JSZip);
+        }
+      };
+    });
+  };
+
+  /** 处理照片数据并生成 ZIP */
+  function onPhotosLoaded(photosList, JSZip) {
+    if (photosList.length === 0) {
+      alert("暂无照片可导出");
+      return;
+    }
+
+    photosList.sort(function(a, b) { return b.uploadedAt - a.uploadedAt; });
+
+    var zip = new JSZip();
+    var folder = zip.folder("520-photos");
+
+    for (var i = 0; i < photosList.length; i++) {
+      var p = photosList[i];
+      var base64 = p.dataUrl.split(",")[1];
+      var filename = "photo_" + String(i + 1).padStart(3, "0") + ".jpg";
+      folder.file(filename, base64, { base64: true });
+    }
+
+    zip.generateAsync({ type: "blob" }).then(function(content) {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(content);
+      a.download = "520-photos-" + photosList.length + ".zip";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    });
+  }
+
+  // ==================== 拖拽上传 ====================
+
+  var dropZone = document.getElementById("drop-zone");
+  var fileInput = document.getElementById("file-input");
+
+  if (dropZone && fileInput) {
+    var dropTextMain = document.getElementById("drop-text-main");
+    var dropTextSub = document.getElementById("drop-text-sub");
+
+    dropZone.addEventListener("dragenter", function(e) {
+      e.preventDefault();
+      dropZone.style.borderColor = "#ED6B86";
+      dropZone.style.background = "rgba(237,107,134,0.08)";
+      if (dropTextMain) dropTextMain.textContent = "释放以上传";
+      if (dropTextSub) dropTextSub.textContent = "松开鼠标完成上传";
+    });
+
+    dropZone.addEventListener("dragover", function(e) {
+      e.preventDefault();
+    });
+
+    dropZone.addEventListener("dragleave", function() {
+      dropZone.style.borderColor = "";
+      dropZone.style.background = "";
+      if (dropTextMain) dropTextMain.textContent = "拖拽照片到这里";
+      if (dropTextSub) dropTextSub.textContent = "或点击选择文件";
+    });
+
+    dropZone.addEventListener("drop", function(e) {
+      e.preventDefault();
+      dropZone.style.borderColor = "";
+      dropZone.style.background = "";
+      if (dropTextMain) dropTextMain.textContent = "拖拽照片到这里";
+      if (dropTextSub) dropTextSub.textContent = "或点击选择文件";
+      handleFiles(e.dataTransfer.files);
+    });
+
+    dropZone.addEventListener("click", function() {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", function(e) {
+      if (e.target.files) {
+        handleFiles(e.target.files);
+        e.target.value = "";
       }
     });
-    
-    // 初始加载
-    loadPhotos();
-  })();
+  }
+
+  // ESC 关闭 Modal
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") {
+      window.Love520.closePhotoModal();
+    }
+  });
+
+  // 初始加载
+  loadPhotos();
+})();
 </script>
