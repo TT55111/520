@@ -1,0 +1,33 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+
+# Astro 缓存
+.astro/
+
+# Worktrees
+.worktrees/
+
+# 音乐文件（版权保护）
+*.mp3
+*.mp3.*
+
+# 环境变量
+.env
+.env.*
+
+# 编辑器
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.bak
+test-verify.py
+final-design-preview.html
