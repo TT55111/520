@@ -1,6 +1,6 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "cd 520-memorial && npm run build",
+  "outputDirectory": "520-memorial/dist",
   "framework": "astro",
-  "installCommand": "npm install"
+  "installCommand": "cd 520-memorial && npm install"
 }
