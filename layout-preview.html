@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>520情侣纪念网站 - 布局方案预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-pink: #ec4899;
+            --soft-pink: #fce7f3;
+            --warm-pink: #f9a8d4;
+            --deep-rose: #be185d;
+        }
+        
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #fff5f7 0%, #ffe4ec 50%, #fdf2f8 100%);
+            min-height: 100vh;
+        }
+        
+        .title-font {
+            font-family: 'Ma Shan Zheng', cursive;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .option-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        
+        .option-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 50px -12px rgba(236, 72, 153, 0.35);
+        }
+        
+        .option-card.selected {
+            border-color: #ec4899;
+            background: linear-gradient(135deg, rgba(252, 231, 243, 0.95), rgba(255, 255, 255, 0.95));
+            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.2), 0 25px 50px -12px rgba(236, 72, 153, 0.4);
+        }
+        
+        .heart-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        
+        .petal {
+            position: fixed;
+            pointer-events: none;
+            animation: fall linear forwards;
+        }
+        
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .mockup-screen {
+            background: linear-gradient(180deg, #fdf2f8 0%, #fce7f3 100%);
+            border: 2px solid #f9a8d4;
+        }
+        
+        .feature-dot {
+            background: linear-gradient(135deg, #ec4899, #f472b6);
+        }
+        
+        .recommend-badge {
+            background: linear-gradient(135deg, #ec4899, #be185d);
+        }
+        
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.4); }
+            100% { box-shadow: 0 0 0 15px rgba(236, 72, 153, 0); }
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden">
+    <!-- 飘落花瓣效果 -->
+    <div id="petals-container"></div>
+    
+    <!-- 头部 -->
+    <header class="text-center pt-12 pb-8 px-4">
+        <div class="heart-float inline-block text-6xl mb-4">💕</div>
+        <h1 class="title-font text-5xl md:text-6xl text-pink-600 mb-4 drop-shadow-lg">
+            520 情侣纪念网站
+        </h1>
+        <p class="text-pink-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+            选择最适合你们的页面布局风格，让爱情以最浪漫的方式呈现
+        </p>
+    </header>
+    
+    <!-- 主内容区 -->
+    <main class="max-w-7xl mx-auto px-4 pb-20">
+        <div class="grid md:grid-cols-3 gap-8">
+            
+            <!-- 方案 A: 单页滚动式 -->
+            <div class="option-card glass-card rounded-3xl p-6 border-2 border-transparent" onclick="selectOption('single-page', this)">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                        A
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">单页滚动式</h3>
+                        <p class="text-sm text-pink-500">流畅自然的阅读体验</p>
+                    </div>
+                </div>
+                
+                <!-- 布局示意图 -->
+                <div class="mockup-screen rounded-xl p-4 mb-4 h-48 overflow-hidden">
+                    <div class="text-center py-4 border-b-2 border-pink-200">
+                        <div class="text-2xl font-bold text-pink-600">234天</div>
+                        <div class="text-xs text-pink-400">纪念日计时</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 p-2">
+                        <div class="bg-pink-200 h-12 rounded"></div>
+                        <div class="bg-pink-200 h-12 rounded"></div>
+                        <div class="bg-pink-200 h-12 rounded"></div>
+                        <div class="bg-pink-200 h-12 rounded"></div>
+                        <div class="bg-pink-200 h-12 rounded"></div>
+                    </div>
+                </div>
+                
+                <ul class="space-y-2 mb-4">
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>顶部醒目展示纪念日计时</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>中部照片墙瀑布流展示</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>底部浪漫寄语留言板</span>
+                    </li>
+                </ul>
+                
+                <div class="text-center">
+                    <span class="inline-block px-4 py-1.5 bg-pink-100 text-pink-600 rounded-full text-sm font-medium">
+                        适合：内容精简、流畅体验
+                    </span>
+                </div>
+            </div>
+            
+            <!-- 方案 B: 分区块式 (推荐) -->
+            <div class="option-card glass-card rounded-3xl p-6 border-2 border-transparent relative" onclick="selectOption('multi-section', this)">
+                <!-- 推荐标签 -->
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span class="recommend-badge text-white text-xs px-4 py-1.5 rounded-full font-medium shadow-lg pulse-ring">
+                        ✨ 推荐方案
+                    </span>
+                </div>
+                
+                <div class="flex items-center gap-3 mb-4 mt-2">
+                    <div class="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                        B
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">分区块式</h3>
+                        <p class="text-sm text-rose-500">仪式感满满的视觉体验</p>
+                    </div>
+                </div>
+                
+                <!-- 布局示意图 -->
+                <div class="space-y-2 mb-4">
+                    <div class="mockup-screen rounded-lg p-3 h-14 flex items-center justify-center">
+                        <span class="text-pink-600 font-bold">第一屏：纪念日计时</span>
+                    </div>
+                    <div class="mockup-screen rounded-lg p-3 h-14 flex items-center justify-center">
+                        <span class="text-pink-600 font-bold">第二屏：照片墙</span>
+                    </div>
+                    <div class="mockup-screen rounded-lg p-3 h-14 flex items-center justify-center">
+                        <span class="text-pink-600 font-bold">第三屏：时光轴</span>
+                    </div>
+                </div>
+                
+                <ul class="space-y-2 mb-4">
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>每屏一个主题，全屏沉浸</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>滚动切换，视觉冲击力强</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>520浪漫氛围的最佳选择</span>
+                    </li>
+                </ul>
+                
+                <div class="text-center">
+                    <span class="inline-block px-4 py-1.5 bg-rose-100 text-rose-600 rounded-full text-sm font-medium">
+                        适合：仪式感、视觉冲击
+                    </span>
+                </div>
+            </div>
+            
+            <!-- 方案 C: 标签页式 -->
+            <div class="option-card glass-card rounded-3xl p-6 border-2 border-transparent" onclick="selectOption('tabbed', this)">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-rose-400 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                        C
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">标签页式</h3>
+                        <p class="text-sm text-pink-500">功能分区清晰明了</p>
+                    </div>
+                </div>
+                
+                <!-- 布局示意图 -->
+                <div class="mockup-screen rounded-xl p-4 mb-4 h-48">
+                    <div class="flex gap-2 mb-3 border-b border-pink-200 pb-2">
+                        <div class="bg-pink-500 text-white px-3 py-1 rounded text-xs">首页</div>
+                        <div class="bg-pink-100 text-pink-600 px-3 py-1 rounded text-xs">相册</div>
+                        <div class="bg-pink-100 text-pink-600 px-3 py-1 rounded text-xs">时光</div>
+                    </div>
+                    <div class="text-center py-6">
+                        <div class="text-xl font-bold text-pink-600">234天</div>
+                        <div class="grid grid-cols-2 gap-2 mt-3">
+                            <div class="bg-pink-200 h-10 rounded"></div>
+                            <div class="bg-pink-200 h-10 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <ul class="space-y-2 mb-4">
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>顶部导航切换不同模块</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>功能分区清晰，扩展性强</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-gray-600">
+                        <span class="feature-dot w-2 h-2 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span>适合内容丰富的纪念册</span>
+                    </li>
+                </ul>
+                
+                <div class="text-center">
+                    <span class="inline-block px-4 py-1.5 bg-pink-100 text-pink-600 rounded-full text-sm font-medium">
+                        适合：功能丰富、内容较多
+                    </span>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- 选择提示 -->
+        <div class="mt-12 text-center">
+            <div class="glass-card rounded-2xl p-6 max-w-2xl mx-auto">
+                <p class="text-pink-600 text-lg font-medium">
+                    👆 点击上方卡片选择你喜欢的布局风格
+                </p>
+                <p class="text-gray-500 text-sm mt-2">
+                    选好后请告诉我你的选择，我们将继续完善设计细节
+                </p>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        // 创建飘落花瓣
+        function createPetal() {
+            const petal = document.createElement('div');
+            petal.className = 'petal';
+            petal.innerHTML = '🌸';
+            petal.style.left = Math.random() * 100 + 'vw';
+            petal.style.top = '-50px';
+            petal.style.fontSize = (Math.random() * 20 + 15) + 'px';
+            petal.style.opacity = Math.random() * 0.6 + 0.4;
+            petal.style.animationDuration = (Math.random() * 3 + 4) + 's';
+            document.getElementById('petals-container').appendChild(petal);
+            
+            setTimeout(() => petal.remove(), 7000);
+        }
+        
+        // 定期创建花瓣
+        setInterval(createPetal, 800);
+        
+        // 选择选项
+        function selectOption(choice, element) {
+            // 移除所有选中状态
+            document.querySelectorAll('.option-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // 添加选中状态
+            element.classList.add('selected');
+            
+            // 保存选择
+            localStorage.setItem('layoutChoice', choice);
+            
+            // 显示选择提示
+            const choiceNames = {
+                'single-page': '单页滚动式',
+                'multi-section': '分区块式',
+                'tabbed': '标签页式'
+            };
+            
+            alert('已选择：' + choiceNames[choice] + '\n\n请回到终端告诉我你的选择！');
+        }
+    </script>
+</body>
+</html>

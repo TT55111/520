@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>520情侣纪念网站 - 布局选择</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #fff5f7 0%, #ffe4ec 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #e91e63;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 1.1rem;
+            margin-bottom: 50px;
+        }
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+        .option {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(233, 30, 99, 0.15);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+        .option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(233, 30, 99, 0.25);
+        }
+        .option.selected {
+            border-color: #e91e63;
+            background: #fff5f7;
+        }
+        .option-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .letter {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #e91e63, #ff6b9d);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .option h3 {
+            color: #333;
+            font-size: 1.4rem;
+        }
+        .option p {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        .option ul {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 20px;
+        }
+        .option ul li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #555;
+        }
+        .option ul li::before {
+            content: '💕';
+            position: absolute;
+            left: 0;
+        }
+        .tag {
+            display: inline-block;
+            background: #e91e63;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        .recommend {
+            background: linear-gradient(135deg, #ff6b9d, #e91e63);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            margin-left: 10px;
+        }
+        .instruction {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .instruction p {
+            color: #e91e63;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💕 520情侣纪念网站 💕</h1>
+        <p class="subtitle">选择最适合你们的页面布局风格</p>
+        
+        <div class="options">
+            <div class="option" onclick="selectOption(this, 'single-page')">
+                <div class="option-header">
+                    <div class="letter">A</div>
+                    <h3>单页滚动式</h3>
+                </div>
+                <p>所有内容在一个页面内，通过滚动浏览</p>
+                <ul>
+                    <li>顶部：纪念日计时（大字体醒目展示）</li>
+                    <li>中部：照片墙/相册（瀑布流或网格）</li>
+                    <li>底部：浪漫寄语/留言板</li>
+                </ul>
+                <span class="tag">适合：内容精简、追求流畅体验</span>
+            </div>
+            
+            <div class="option" onclick="selectOption(this, 'multi-section')">
+                <div class="option-header">
+                    <div class="letter">B</div>
+                    <h3>分区块式 <span class="recommend">推荐</span></h3>
+                </div>
+                <p>一屏一个主题，滚动切换全屏区块</p>
+                <ul>
+                    <li>第一屏：纪念日计时 + 主视觉背景</li>
+                    <li>第二屏：照片墙/相册</li>
+                    <li>第三屏：时间轴/纪念日历</li>
+                </ul>
+                <span class="tag">适合：视觉冲击力强、仪式感满满</span>
+            </div>
+            
+            <div class="option" onclick="selectOption(this, 'tabbed')">
+                <div class="option-header">
+                    <div class="letter">C</div>
+                    <h3>标签页式</h3>
+                </div>
+                <p>顶部导航切换不同功能模块</p>
+                <ul>
+                    <li>首页：纪念日计时 + 精选照片</li>
+                    <li>相册：完整照片墙</li>
+                    <li>时光：时间轴记录</li>
+                </ul>
+                <span class="tag">适合：功能丰富、内容较多</span>
+            </div>
+        </div>
+        
+        <div class="instruction">
+            <p>👆 点击上方卡片选择你喜欢的布局风格</p>
+        </div>
+    </div>
+    
+    <script>
+        function selectOption(element, choice) {
+            // 移除所有选中状态
+            document.querySelectorAll('.option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            // 添加选中状态
+            element.classList.add('selected');
+            
+            // 保存选择到 localStorage
+            localStorage.setItem('layoutChoice', choice);
+            
+            // 显示提示
+            alert('已选择：' + (choice === 'single-page' ? '单页滚动式' : choice === 'multi-section' ? '分区块式' : '标签页式') + '\n\n请回到终端告诉我你的选择！');
+        }
+    </script>
+</body>
+</html>
