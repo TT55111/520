@@ -13,6 +13,8 @@ dist/
 # 音乐文件（版权保护）
 *.mp3
 *.mp3.*
+# 但保留我们的背景音乐
+!public/music/bg.mp3
 
 # 环境变量
 .env
