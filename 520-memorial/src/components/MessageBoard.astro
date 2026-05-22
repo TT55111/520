@@ -5,14 +5,15 @@
  */
 ---
 
-<div class="max-w-[720px] mx-auto py-16 px-5" id="message-board">
+<div class="max-w-[720px] mx-auto py-16 px-5 reveal" id="message-board">
   <!-- 标题 -->
   <h2 class="text-3xl font-light text-[#2C1A1E] text-center mb-8 tracking-wider" style="font-family: 'Playfair Display', serif;">
     写给对方的话
   </h2>
+  <div style="width: 40px; height: 2px; margin: 0.5rem auto 0; border-radius: 1px; background: linear-gradient(to right, #F5A8B8, #ED6B86);"></div>
   
   <!-- 留言列表 -->
-  <div id="message-list" class="space-y-4 mb-8 max-h-[400px] overflow-y-auto pr-2">
+  <div id="message-list" class="space-y-3 mb-8 max-h-[400px] overflow-y-auto pr-2">
     <!-- 留言卡片通过 JS 动态渲染 -->
   </div>
   
@@ -22,7 +23,7 @@
   </div>
   
   <!-- 输入区 -->
-  <div class="bg-white/60 rounded-[16px] p-4" style="backdrop-filter: blur(10px); border: 1px solid rgba(237,107,134,0.1);">
+  <div class="input-area bg-white/60 rounded-[16px] p-4" style="backdrop-filter: blur(10px); border: 1px solid rgba(237,107,134,0.1); transition: border-color 0.3s ease, box-shadow 0.3s ease;">
     <!-- 作者选择 -->
     <div class="flex gap-3 mb-3">
       <label class="flex items-center gap-2 cursor-pointer">
@@ -47,12 +48,34 @@
       <button 
         id="send-btn"
         class="bg-[#ED6B86] text-white rounded-[12px] px-5 py-3 text-sm font-medium hover:bg-[#D4507A] transition-colors self-end"
+        style="position:relative;overflow:hidden;"
       >
         发送
       </button>
     </div>
   </div>
 </div>
+
+<style>
+.input-area:focus-within {
+  border-color: rgba(237,107,134,0.18) !important;
+  box-shadow: 0 0 0 4px rgba(237,107,134,0.06), 0 4px 16px rgba(237,107,134,0.06) !important;
+}
+#send-btn.pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255,255,255,0.3);
+  animation: pulse-fade 0.4s ease-out;
+}
+@keyframes pulse-fade {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+.msg-row:hover .msg-delete-btn { opacity: 1 !important; }
+.msg-delete-btn:hover svg { stroke: #ED6B86 !important; }
+</style>
 
 <script is:inline>
 (function() {
@@ -89,7 +112,7 @@
   // Bug 5 修复：统一使用 openDB 函数，确保 onupgradeneeded 创建 objectStore
 
   var DB_NAME = "love520";
-  var DB_VERSION = 1;
+  var DB_VERSION = 2;
 
   function openDB(callback) {
     var req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -139,19 +162,19 @@
         for (var i = 0; i < messages.length; i++) {
           var msg = messages[i];
           var isTT = msg.author === "TT";
-          var tagColor = isTT ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700";
+          var rowClass = isTT ? "flex gap-2 items-start" : "flex gap-2 items-start flex-row-reverse";
+          var avatarBg = isTT ? "background:rgba(59,130,246,0.1);color:#3B82F6;" : "background:rgba(237,107,134,0.1);color:#D4507A;";
+          var bubbleBg = isTT ? "background:rgba(255,255,255,0.85);border:1px solid rgba(237,107,134,0.06);border-top-left-radius:4px;" : "background:linear-gradient(135deg,rgba(237,107,134,0.10),rgba(237,107,134,0.06));border:1px solid rgba(237,107,134,0.10);border-top-right-radius:4px;";
+          var timeAlign = isTT ? "" : "text-align:right;";
           var safeContent = escapeHtml(msg.content);
 
-          html += '<div class="bg-white/60 rounded-[12px] p-4 relative" style="backdrop-filter: blur(8px); border: 1px solid rgba(237,107,134,0.08);">' +
-            '<div class="flex items-start gap-3">' +
-            '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ' + tagColor + '">' + escapeHtml(msg.author) + '</span>' +
-            '<div class="flex-1">' +
-            '<p class="text-[#2C1A1E] text-sm leading-relaxed" style="font-family: \'Noto Serif SC\', serif;">' + safeContent + '</p>' +
-            '<p class="text-[#C4A4AB] text-xs mt-2">' + formatTime(msg.createdAt) + '</p>' +
-            '</div>' +
-            '<button data-msg-id="' + escapeHtml(msg.id) + '" class="msg-delete-btn text-[#C4A4AB] hover:text-[#ED6B86] transition-colors p-1">' +
-            '<svg class="w-4 h-4" style="stroke: currentColor; stroke-width: 1.5; fill: none;" viewBox="0 0 24 24">' +
-            '<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/></svg></button>' +
+          html += '<div class="msg-row ' + rowClass + '">' +
+            '<div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6875rem;font-weight:600;flex-shrink:0;letter-spacing:0.5px;' + avatarBg + '">' + escapeHtml(msg.author) + '</div>' +
+            '<div style="max-width:70%;padding:0.75rem 1rem;border-radius:16px;font-size:0.9375rem;line-height:1.7;position:relative;' + bubbleBg + '">' +
+            '<p class="text-[#2C1A1E] text-sm leading-relaxed" style="font-family:\'Noto Serif SC\',serif;">' + safeContent + '</p>' +
+            '<p class="text-[#C4A4AB] text-xs mt-2" style="font-size:0.625rem;' + timeAlign + '">' + escapeHtml(formatTime(msg.createdAt)) + '</p>' +
+            '<button data-msg-id="' + escapeHtml(msg.id) + '" class="msg-delete-btn" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:white;border:1px solid rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.2s ease;box-shadow:0 1px 4px rgba(0,0,0,0.1);">' +
+            '<svg style="width:10px;height:10px;stroke:#C4A4AB;stroke-width:2;fill:none;" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/></svg></button>' +
             '</div></div>';
         }
         listEl.innerHTML = html;
@@ -193,6 +216,10 @@
     sendBtn.addEventListener("click", function() {
       var content = inputEl.value.trim();
       if (!content) return;
+
+      // 脉冲反馈动效
+      sendBtn.classList.add('pulse');
+      setTimeout(function() { sendBtn.classList.remove('pulse'); }, 400);
 
       var authorEl = document.querySelector('input[name="author"]:checked');
       var author = authorEl ? authorEl.value : "TT";

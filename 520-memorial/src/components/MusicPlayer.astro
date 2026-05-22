@@ -10,16 +10,22 @@ const { musicUrl } = config;
 ---
 
 <!-- 将音乐路径通过 data 属性传递到 DOM -->
-<div id="music-player" class="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 py-2.5 px-3.5 rounded-[50px] cursor-pointer transition-all duration-300" style="background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(237,107,134,0.15); box-shadow: 0 4px 24px rgba(237,107,134,0.12);" data-music-url={musicUrl} onmouseenter="this.style.boxShadow='0 6px 32px rgba(237,107,134,0.2)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.boxShadow='';this.style.transform=''">
+<div id="music-player" class="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 py-2.5 px-3.5 rounded-[50px] cursor-pointer transition-all duration-300" style="position:relative;background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(237,107,134,0.15); box-shadow: 0 4px 24px rgba(237,107,134,0.12);" data-music-url={musicUrl} onmouseenter="this.style.boxShadow='0 6px 32px rgba(237,107,134,0.2)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.boxShadow='';this.style.transform=''">
   <!-- 旋转唱片 -->
-  <div id="music-disc" class="w-7 h-7 rounded-full flex items-center justify-center" style="background: linear-gradient(135deg, #ED6B86, #D4507A); animation: spin 3s linear infinite; animation-play-state: paused;">
-    <svg class="w-3 h-3" style="fill: #fff;" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
+  <div id="music-disc" class="w-7 h-7 rounded-full flex items-center justify-center" style="background: radial-gradient(circle, #D4507A 3px, transparent 3px), radial-gradient(circle, rgba(255,255,255,0.15) 4px, transparent 4px), repeating-radial-gradient(circle, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 2px), linear-gradient(135deg, #ED6B86, #D4507A); animation: spin 3s linear infinite; animation-play-state: paused;">
   </div>
   
   <!-- 歌曲信息 -->
   <div class="flex flex-col">
     <span class="text-xs text-[#2C1A1E] tracking-wide" style="font-size: 0.72rem;">背景音乐</span>
-    <span class="text-[#A0808A] tracking-wide" style="font-size: 0.65rem;" id="music-status">点击播放</span>
+    <span class="text-[#A0808A] tracking-wide" style="font-size: 0.65rem;" id="music-status">
+      <div id="music-wave" class="flex items-center gap-0.5" style="height: 14px;">
+        <div class="wave-bar" style="width:2px;border-radius:1px;background:#ED6B86;height:4px;animation:waveBar 1.2s ease-in-out infinite;"></div>
+        <div class="wave-bar" style="width:2px;border-radius:1px;background:#ED6B86;height:8px;animation:waveBar 1.2s ease-in-out infinite;animation-delay:0.15s;"></div>
+        <div class="wave-bar" style="width:2px;border-radius:1px;background:#ED6B86;height:12px;animation:waveBar 1.2s ease-in-out infinite;animation-delay:0.3s;"></div>
+        <div class="wave-bar" style="width:2px;border-radius:1px;background:#ED6B86;height:6px;animation:waveBar 1.2s ease-in-out infinite;animation-delay:0.45s;"></div>
+      </div>
+    </span>
   </div>
   
   <!-- 播放按钮 -->
@@ -32,6 +38,10 @@ const { musicUrl } = config;
   <!-- 隐藏的 audio 元素 -->
   <audio id="bg-music" loop preload="auto">
   </audio>
+  <!-- 播放进度条 -->
+  <div class="absolute bottom-0 left-4 right-4 h-0.5 rounded-full overflow-hidden" style="background: rgba(237,107,134,0.1);">
+    <div id="progress-fill" class="h-full rounded-full" style="width: 0%; background: linear-gradient(to right, #F5A8B8, #ED6B86); transition: width 0.3s ease;"></div>
+  </div>
 </div>
 
 <script is:inline>
@@ -45,7 +55,15 @@ const { musicUrl } = config;
     var playIcon = document.getElementById("play-icon");
     var musicStatus = document.getElementById("music-status");
     var musicDisc = document.getElementById("music-disc");
+    var musicWave = document.getElementById("music-wave");
+    var waveBars = musicWave ? musicWave.querySelectorAll('.wave-bar') : [];
     var isPlaying = false;
+
+    // 波形条原始高度，用于恢复
+    var waveBarHeights = [];
+    waveBars.forEach(function(bar) {
+      waveBarHeights.push(bar.style.height);
+    });
 
     // 动态设置音频源
     if (audio && musicUrl) {
@@ -58,16 +76,25 @@ const { musicUrl } = config;
       if (isPlaying) {
         audio.pause();
         playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-        musicStatus.textContent = "点击播放";
         musicDisc.style.animationPlayState = 'paused';
+        // 暂停时：波形条停止动画并缩小
+        if (musicWave) musicWave.classList.add('paused');
+        waveBars.forEach(function(bar) {
+          bar.style.animationPlayState = 'paused';
+          bar.style.height = '3px';
+        });
       } else {
         audio.play().then(function() {
           playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-          musicStatus.textContent = "正在播放";
           musicDisc.style.animationPlayState = 'running';
+          // 播放时：波形条恢复动画和原始高度
+          if (musicWave) musicWave.classList.remove('paused');
+          waveBars.forEach(function(bar, i) {
+            bar.style.animationPlayState = 'running';
+            bar.style.height = waveBarHeights[i];
+          });
         }).catch(function(err) {
           console.warn("Audio play failed:", err);
-          musicStatus.textContent = "播放失败，请检查音乐文件";
         });
       }
       isPlaying = !isPlaying;
@@ -97,10 +124,26 @@ const { musicUrl } = config;
         audio.play().then(function() {
           isPlaying = true;
           playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-          musicStatus.textContent = "正在播放";
           musicDisc.style.animationPlayState = 'running';
+          // 自动播放时：波形条恢复动画和原始高度
+          if (musicWave) musicWave.classList.remove('paused');
+          waveBars.forEach(function(bar, i) {
+            bar.style.animationPlayState = 'running';
+            bar.style.height = waveBarHeights[i];
+          });
         }).catch(function() {});
       }
     });
+
+    // 进度条更新逻辑
+    var progressFill = document.getElementById('progress-fill');
+    if (audio && progressFill) {
+      audio.addEventListener('timeupdate', function() {
+        if (audio.duration) {
+          var pct = (audio.currentTime / audio.duration) * 100;
+          progressFill.style.width = pct + '%';
+        }
+      });
+    }
   });
 </script>

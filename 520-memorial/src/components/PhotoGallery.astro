@@ -7,7 +7,7 @@ import type { PhotoItem } from "../lib/db";
 ---
 
 <section id="gallery" class="py-24 px-6 relative z-10" style="background: radial-gradient(ellipse at 70% 20%, rgba(237,107,134,0.08) 0%, transparent 50%), #FFF3F5;">
-  <div class="max-w-6xl mx-auto">
+  <div class="max-w-6xl mx-auto reveal">
     <div class="text-center mb-14">
       <div class="inline-flex items-center gap-2 mb-2">
         <h2 class="text-3xl font-normal text-[#2C1A1E] tracking-[2px]" style="font-family: 'Playfair Display', 'Noto Serif SC', serif;">Our Moments</h2>
@@ -18,6 +18,7 @@ import type { PhotoItem } from "../lib/db";
           导出照片
         </button>
       </div>
+      <div style="width: 40px; height: 2px; margin: 0.5rem auto 0; border-radius: 1px; background: linear-gradient(to right, #F5A8B8, #ED6B86);"></div>
       <p class="text-[#A0808A] text-xs tracking-[3px]">每一个瞬间都值得珍藏</p>
     </div>
 
@@ -27,7 +28,7 @@ import type { PhotoItem } from "../lib/db";
       class="max-w-[560px] mx-auto mb-12 border-[1.5px] border-dashed border-[#F5A8B8] rounded-[20px] py-9 px-10 text-center cursor-pointer transition-all duration-300"
       style="background: rgba(255,255,255,0.4); backdrop-filter: blur(10px);"
     >
-      <svg class="w-9 h-9 mx-auto mb-3" style="stroke: #ED6B86; stroke-width: 1.5; fill: none;" viewBox="0 0 24 24">
+      <svg class="w-9 h-9 mx-auto mb-3 drop-zone-icon" style="stroke: #ED6B86; stroke-width: 1.5; fill: none; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);" viewBox="0 0 24 24">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <p class="text-[#A0808A] text-sm tracking-wide" id="drop-text-main">拖拽照片到这里</p>
@@ -42,9 +43,13 @@ import type { PhotoItem } from "../lib/db";
 
     <!-- 空状态 -->
     <div id="empty-state" class="text-center py-16">
-      <svg class="w-12 h-12 mx-auto mb-4" style="stroke: #F5A8B8; stroke-width: 1; fill: none; opacity: 0.5;" viewBox="0 0 24 24">
-        <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <div style="display:inline-block;background:white;padding:12px 12px 36px;border-radius:4px;box-shadow:0 4px 20px rgba(0,0,0,0.08);transform:rotate(-3deg);margin-bottom:1.5rem;">
+        <div style="width:80px;height:80px;background:linear-gradient(135deg,#FFF3F5,#FFE8EC);border-radius:2px;display:flex;align-items:center;justify-content:center;">
+          <svg style="width:32px;height:32px;stroke:#F5A8B8;stroke-width:1.2;fill:none;" viewBox="0 0 24 24">
+            <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
       <p class="text-[#C4A4AB] text-sm tracking-wide leading-relaxed">还没有照片哦<br/>快上传你们的甜蜜瞬间吧</p>
     </div>
   </div>
@@ -84,7 +89,7 @@ import type { PhotoItem } from "../lib/db";
   // onupgradeneeded 中确保两个 store 都被创建（Bug 5 关联修复）
 
   var DB_NAME = "love520";
-  var DB_VERSION = 1;
+  var DB_VERSION = 2;
 
   function openDB(callback) {
     var req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -196,6 +201,11 @@ import type { PhotoItem } from "../lib/db";
     img.loading = "lazy";
     card.appendChild(img);
 
+    // 暗角渐变层：hover 时显示，增加照片质感
+    var vignette = document.createElement("div");
+    vignette.style.cssText = "position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 0.4s ease;box-shadow:inset 0 0 60px rgba(44,26,30,0.15);";
+    card.appendChild(vignette);
+
     // 悬浮操作层
     var overlay = document.createElement("div");
     overlay.className = "absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity";
@@ -203,6 +213,7 @@ import type { PhotoItem } from "../lib/db";
 
     var btnGroup = document.createElement("div");
     btnGroup.className = "flex gap-2";
+    btnGroup.style.cssText = "transform: translateY(8px); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);";
 
     // 预览按钮
     var previewBtn = document.createElement("button");
@@ -231,10 +242,18 @@ import type { PhotoItem } from "../lib/db";
     card.addEventListener("mouseenter", function() {
       card.style.transform = "translateY(-3px)";
       card.style.boxShadow = "0 8px 30px rgba(237,107,134,0.15)";
+      // 显示暗角渐变
+      vignette.style.opacity = "1";
+      // 按钮组上浮
+      btnGroup.style.transform = "translateY(0)";
     });
     card.addEventListener("mouseleave", function() {
       card.style.transform = "";
       card.style.boxShadow = "";
+      // 隐藏暗角渐变
+      vignette.style.opacity = "0";
+      // 按钮组回位
+      btnGroup.style.transform = "translateY(8px)";
     });
 
     // 点击预览
@@ -461,6 +480,9 @@ import type { PhotoItem } from "../lib/db";
       dropZone.style.background = "rgba(237,107,134,0.08)";
       if (dropTextMain) dropTextMain.textContent = "释放以上传";
       if (dropTextSub) dropTextSub.textContent = "松开鼠标完成上传";
+      // 图标上浮动效
+      var icon = dropZone.querySelector(".drop-zone-icon");
+      if (icon) icon.style.transform = "translateY(-6px)";
     });
 
     dropZone.addEventListener("dragover", function(e) {
@@ -472,6 +494,9 @@ import type { PhotoItem } from "../lib/db";
       dropZone.style.background = "";
       if (dropTextMain) dropTextMain.textContent = "拖拽照片到这里";
       if (dropTextSub) dropTextSub.textContent = "或点击选择文件";
+      // 恢复图标位置
+      var icon = dropZone.querySelector(".drop-zone-icon");
+      if (icon) icon.style.transform = "";
     });
 
     dropZone.addEventListener("drop", function(e) {
@@ -480,6 +505,9 @@ import type { PhotoItem } from "../lib/db";
       dropZone.style.background = "";
       if (dropTextMain) dropTextMain.textContent = "拖拽照片到这里";
       if (dropTextSub) dropTextSub.textContent = "或点击选择文件";
+      // 恢复图标位置
+      var icon = dropZone.querySelector(".drop-zone-icon");
+      if (icon) icon.style.transform = "";
       handleFiles(e.dataTransfer.files);
     });
 
